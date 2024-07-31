@@ -1,6 +1,8 @@
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from datetime import datetime
+from json import load
 from pathlib import Path
+from typing import Callable
 
 from mongoengine import connect, Document
 from mongoengine.connection import ConnectionFailure
@@ -24,11 +26,63 @@ class Quote(Document):
     meta = {'collection': 'quotes'}
 
 
+def absent(type: str, name: str) -> None:
+    '''Show warning message.
+
+    :param type: Prefix of phrase.
+    :param name: Object name which is missed.
+    '''
+    print(f'{type} {name} not found.')
+
+
+def collection(
+    model: str,
+    modify: str,
+    modifier: Callable[[str], str],
+    key: str = None
+) -> dict:
+    '''Import documents from file to collection.
+
+    :param model: Class name of collection model.
+    :param modify: The dictionary key from the file whose value will be changed
+        by the function declared in the next parameter.
+    :param modifier: Name of function which will edit file dictionary value
+        defined in the previous parameter.
+    :param key: (optional) Save created document identifier to function result
+        dictionary keyed by value from file dictionary based on a key specified
+        in this parameter if last one is defined.
+
+    :return: Document identifiers or empty dictionary.
+    '''
+    items = {}
+    collection = model.lower() + 's'
+
+    try:
+        with open(collection + '.json', encoding='utf-8') as file:
+            documents = load(file)
+    except FileNotFoundError as error:
+        absent('Collection file', error.filename)
+    else:
+        cls = globals()[model]
+
+        for document in documents:
+            document[modify] = modifier(document[modify])
+            entity = cls(**document).save()
+
+            if key:
+                items[document[key]] = entity
+
+        print(f'{len(documents)} documents of {collection} have been '
+              'successfully created.')
+    finally:
+        return items
+
+
 def main() -> None:
     path = Path('credentials.ini')
 
     if not path.exists():
-        print(f'Configuration file {path} not found.')
+        absent('Configuration file', path)
         return
 
     config = ConfigParser()
@@ -37,49 +91,27 @@ def main() -> None:
     try:
         credentials = [config.get('database', option)
                        for option in ('user', 'password', 'host', 'name')]
-    except NoSectionError as error:
-        print(f'Section {error.section} not found.')
-    except NoOptionError as error:
-        print(f'Option {error.option} not found.')
+    except (NoSectionError, NoOptionError) as error:
+        absent(error.__class__.__name__[2:-5], error.section)
     else:
-        QUERY = {
-            # 'ssl': 'false',
-            'retryWrites': 'true',
-            'w': 'majority'
-        }
-
-        URI = 'mongodb+srv://{}:{}@{}/?' + \
-            '&'.join([f'{key}={value}' for key, value in QUERY.items()])
+        URI = 'mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority'
 
         try:
-            connect(host=URI.format(*credentials),
-                    db=credentials.pop(),
+            connect(db=credentials.pop(),
+                    host=URI.format(*credentials),
                     tls=True,
                     tlsAllowInvalidCertificates=True)
         except (ConfigurationError, ConnectionFailure):
             print('Invalid credentials.')
         else:
-            author = Author(fullname='Steve Martin',
-                            born_date=datetime(1945, 8, 14),
-                            born_location='in Waco, Texas, The United States',
-                            description='''Stephen Glenn "Steve" Martin is an
-American actor, comedian, writer, playwright, producer, musician, and composer.
-He was raised in Southern California in a Baptist family, where his early
-influences were working at Disneyland and Knott's Berry Farm and working magic
-and comedy acts at these and other smaller venues in the area. His ascent to
-fame picked up when he became a writer for the Smothers Brothers Comedy Hour,
-and later became a frequent guest on the Tonight Show.In the 1970s, Martin
-performed his offbeat, absurdist comedy routines before packed houses on
-national tours. In the 1980s, having branched away from stand-up comedy, he
-became a successful actor, playwright, and juggler, and eventually earned Emmy,
-Grammy, and American Comedy awards.''')
+            authors = collection(
+                'Author',
+                'born_date',
+                lambda date: datetime.strptime(date, '%B %d, %Y').date(),
+                'fullname'
+            )
 
-            author.save()
-
-            Quote(tags=('humor', 'obvious', 'simile'),
-                  author=author,
-                  quote='A day without sunshine is like, you know, night.'
-                  ).save()
+            collection('Quote', 'author', lambda name: authors[name])
 
 
 if __name__ == '__main__':
