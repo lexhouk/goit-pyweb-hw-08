@@ -2,3 +2,4 @@
 *.json
 .venv
 poetry.lock
+__pycache__
