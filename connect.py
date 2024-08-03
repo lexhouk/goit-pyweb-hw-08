@@ -1,4 +1,5 @@
 from configparser import ConfigParser, NoOptionError, NoSectionError
+from logging import basicConfig, error, INFO
 from pathlib import Path
 
 from mongoengine import connect
@@ -18,27 +19,41 @@ def absent(type: str, name: str = None) -> str:
     return f'{type}{name} not found.'
 
 
-def init() -> None:
+def init() -> bool:
+    basicConfig(format='%(levelname)s: %(message)s', level=INFO)
+
     path = Path('credentials.ini')
 
-    if not path.exists():
-        raise Exception(absent('Configuration file', path))
-
-    config = ConfigParser()
-    config.read(path, 'utf-8')
-
     try:
-        credentials = [config.get('database', option)
-                       for option in ('user', 'password', 'host', 'name')]
-    except (NoSectionError, NoOptionError) as error:
-        raise Exception(absent(error.__class__.__name__[2:-5], error.section))
-    else:
-        URI = 'mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority'
+        if not path.exists():
+            raise Exception(absent('Configuration file', path))
+
+        (config := ConfigParser()).read(path, 'utf-8')
 
         try:
-            connect(db=credentials.pop(),
+            credentials = [
+                config.get('database', option)
+                for option in ('user', 'password', 'host', 'name')
+            ]
+        except NoSectionError as err:
+            raise Exception(absent('Section', err.section))
+        except NoOptionError as err:
+            raise Exception(absent('Option', err.option))
+        else:
+            URI = 'mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority'
+
+            try:
+                connect(
+                    db=credentials.pop(),
                     host=URI.format(*credentials),
                     tls=True,
-                    tlsAllowInvalidCertificates=True)
-        except (ConfigurationError, ConnectionFailure):
-            raise Exception('Invalid credentials.')
+                    tlsAllowInvalidCertificates=True
+                )
+            except (ConfigurationError, ConnectionFailure):
+                raise Exception('Invalid credentials.')
+    except Exception as err:
+        error(err)
+
+        return False
+
+    return True

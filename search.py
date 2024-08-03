@@ -1,4 +1,4 @@
-from logging import basicConfig, error, INFO, info, warning
+from logging import info, warning
 from typing import Any
 
 from connect import absent, init
@@ -48,12 +48,7 @@ def tags_command(arguments: list) -> str:
 
 
 def main() -> None:
-    basicConfig(format='%(levelname)s: %(message)s', level=INFO)
-
-    try:
-        init()
-    except Exception as err:
-        error(err)
+    if not init():
         return
 
     while True:

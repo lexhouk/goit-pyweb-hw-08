@@ -3,6 +3,8 @@ from json import load
 from typing import Callable
 
 from connect import absent, init
+
+# Each model should be imported to use them from global definitions.
 from models import Author, Quote
 
 
@@ -25,6 +27,7 @@ def collection(
 
     :return: Document identifiers or empty dictionary.
     '''
+
     items = {}
     collection = model.lower() + 's'
 
@@ -43,26 +46,26 @@ def collection(
             if key:
                 items[document[key]] = entity
 
-        print(f'{len(documents)} documents of {collection} have been '
-              'successfully created.')
+        print(
+            f'{len(documents)} documents of {collection} have been '
+            'successfully created.'
+        )
     finally:
         return items
 
 
 def main() -> None:
-    try:
-        init()
-    except Exception as error:
-        print(error)
-    else:
-        authors = collection(
-            'Author',
-            'born_date',
-            lambda date: datetime.strptime(date, '%B %d, %Y').date(),
-            'fullname'
-        )
+    if not init():
+        return
 
-        collection('Quote', 'author', lambda name: authors[name])
+    authors = collection(
+        'Author',
+        'born_date',
+        lambda date: datetime.strptime(date, '%B %d, %Y').date(),
+        'fullname'
+    )
+
+    collection('Quote', 'author', lambda name: authors[name])
 
 
 if __name__ == '__main__':
