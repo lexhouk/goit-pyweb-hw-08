@@ -10,6 +10,7 @@ python = "^3.12"
 mongoengine = "^0.28.2"
 pika = "^1.3.2"
 faker = "^26.1.0"
+redis-lru = "^0.1.2"
 
 
 [build-system]

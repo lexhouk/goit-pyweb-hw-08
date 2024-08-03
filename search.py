@@ -1,26 +1,32 @@
-from logging import info, warning
+from logging import debug, info, warning
 from typing import Any
+
+from redis import StrictRedis
+from redis_lru import RedisLRU
 
 from connect import absent, init
 from services.mongodb.models import Author, Quote
 
 
+cache = RedisLRU(StrictRedis('localhost', 6379))
+
+
 def response(caption: str, names: list, field: list, value: Any) -> str:
+    debug('Sending query to database...')
+
     names = ', '.join(names)
 
     if (quotes := Quote.objects(**{field: value})):
-        return f'{caption} {names}:\n' + \
-            '\n'.join([
-                f'{delta + 1}. {quote.quote}'
-                for delta, quote in enumerate(quotes)
-            ])
+        return '\n'.join([
+            f'{caption} {names}:',
+            *[f'{key + 1}. {quote.quote}' for key, quote in enumerate(quotes)],
+        ])
     else:
         raise Exception(absent(caption, names))
 
 
-def name_command(arguments: list) -> str:
-    name, *_ = arguments
-
+@cache
+def name_command(name: str) -> str:
     if (authors := Author.objects(fullname=name)):
         return response(
             'Quotes of author',
@@ -32,19 +38,15 @@ def name_command(arguments: list) -> str:
         raise Exception(absent('Author', name))
 
 
-def tag_command(arguments: list) -> str:
-    tag, *_ = arguments
-
+@cache
+def tag_command(tag: str) -> str:
     return response('Quotes with tag', [tag], 'tags', tag)
 
 
-def tags_command(arguments: list) -> str:
-    return response(
-        'Quotes with tags',
-        arguments,
-        'tags__in',
-        arguments
-    )
+def tags_command(tags: str) -> str:
+    tags = [tags.strip() for tags in tags.split(',') if tags.strip()]
+
+    return response('Quotes with tags', tags, 'tags__in', tags)
 
 
 def main() -> None:
@@ -60,14 +62,7 @@ def main() -> None:
             warning('Unknown command.')
             continue
 
-        if arguments:
-            arguments = [
-                argument.strip()
-                for argument in arguments[0].split(',')
-                if argument.strip()
-            ]
-
-        if arguments:
+        if (arguments := arguments[0].strip() if arguments else None):
             try:
                 info(globals()[callback](arguments))
             except Exception as err:
