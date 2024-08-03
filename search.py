@@ -2,7 +2,7 @@ from logging import info, warning
 from typing import Any
 
 from connect import absent, init
-from models import Author, Quote
+from services.mongodb.models import Author, Quote
 
 
 def response(caption: str, names: list, field: list, value: Any) -> str:

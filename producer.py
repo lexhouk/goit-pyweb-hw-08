@@ -1,38 +1,16 @@
-from pickle import dumps
 from random import randint
 
 from faker import Faker
-from mongoengine import Document
-from mongoengine.fields import BooleanField, EmailField, StringField
-from pika import BlockingConnection, ConnectionParameters, PlainCredentials
 
 from connect import init
-
-
-class Contact(Document):
-    fullname = StringField(max_length=50, required=True)
-    email = EmailField(required=True)
-    address = StringField(max_length=200)
-    delivered = BooleanField(required=True, default=False)
-    meta = {'collection': 'contacts'}
+from services.rabbitmq.models import Contact
 
 
 def main() -> None:
-    if not init():
+    if not init() or not (data := init(True)):
         return
 
-    connection = BlockingConnection(
-        ConnectionParameters(
-            'localhost',
-            5672,
-            credentials=PlainCredentials('guest', 'guest')
-        )
-    )
-
-    QUEUE = 'subscribers'
-
-    (channel := connection.channel()).queue_declare(QUEUE)
-
+    connection, channel, queue_name = data
     fake = Faker()
 
     for _ in range(randint(10, 20)):
@@ -42,7 +20,7 @@ def main() -> None:
             address=fake.address()
         ).save()
 
-        channel.basic_publish('', QUEUE, dumps(contact))
+        channel.basic_publish('', queue_name, str(contact.id).encode())
 
     connection.close()
 

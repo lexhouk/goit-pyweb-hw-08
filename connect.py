@@ -2,10 +2,6 @@ from configparser import ConfigParser, NoOptionError, NoSectionError
 from logging import basicConfig, error, INFO
 from pathlib import Path
 
-from mongoengine import connect
-from mongoengine.connection import ConnectionFailure
-from pymongo.errors import ConfigurationError
-
 
 def absent(type: str, name: str = None) -> str:
     '''Show warning message.
@@ -19,10 +15,11 @@ def absent(type: str, name: str = None) -> str:
     return f'{type}{name} not found.'
 
 
-def init() -> bool:
+def init(is_rabbitmq: bool = False) -> bool:
     basicConfig(format='%(levelname)s: %(message)s', level=INFO)
 
     path = Path('credentials.ini')
+    section = 'rabbitmq' if is_rabbitmq else 'mongodb'
 
     try:
         if not path.exists():
@@ -30,30 +27,27 @@ def init() -> bool:
 
         (config := ConfigParser()).read(path, 'utf-8')
 
+        options = ['user', 'password', 'host']
+
+        if is_rabbitmq:
+            options.append('port')
+
+        options.append('name')
+
         try:
-            credentials = [
-                config.get('database', option)
-                for option in ('user', 'password', 'host', 'name')
-            ]
+            credentials = [config.get(section, option) for option in options]
         except NoSectionError as err:
             raise Exception(absent('Section', err.section))
         except NoOptionError as err:
             raise Exception(absent('Option', err.option))
         else:
-            URI = 'mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority'
+            if is_rabbitmq:
+                from services.rabbitmq.connect import handler
+            else:
+                from services.mongodb.connect import handler
 
-            try:
-                connect(
-                    db=credentials.pop(),
-                    host=URI.format(*credentials),
-                    tls=True,
-                    tlsAllowInvalidCertificates=True
-                )
-            except (ConfigurationError, ConnectionFailure):
-                raise Exception('Invalid credentials.')
+            return handler(credentials)
     except Exception as err:
         error(err)
 
         return False
-
-    return True

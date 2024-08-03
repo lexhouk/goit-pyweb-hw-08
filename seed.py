@@ -5,7 +5,7 @@ from typing import Callable
 from connect import absent, init
 
 # Each model should be imported to use them from global definitions.
-from models import Author, Quote
+from services.mongodb.models import Author, Quote
 
 
 def collection(
