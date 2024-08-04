@@ -29,6 +29,7 @@ def callback(
 
     if contact:
         recipient = getattr(contact, field).value
+
         info(f'Sending {type} to {recipient}...')
 
         if handler(recipient):
@@ -49,6 +50,13 @@ def main() -> None:
 
 
 def start(field_name: str, type_name: str, handler_callback: Handler) -> None:
+    '''Start listening to some queue.
+
+    :param field_name: The field name.
+    :param type_name: The recipient type.
+    :param handler_callback: Pointer to function which will process data.
+    '''
+
     global field, type, handler
 
     field, type, handler = field_name, type_name, handler_callback

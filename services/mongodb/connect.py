@@ -4,6 +4,13 @@ from pymongo.errors import ConfigurationError
 
 
 def handler(credentials: list) -> bool:
+    '''Create a connection to the MongoDB database.
+
+    :param credentials: Options for connection URI.
+
+    :return: True if it is done without errors.
+    '''
+
     URI = 'mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority'
 
     try:

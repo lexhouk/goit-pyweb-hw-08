@@ -55,17 +55,17 @@ def collection(
 
 
 def main() -> None:
-    if not init():
-        return
+    '''Create collections and add documents to them.'''
 
-    authors = collection(
-        'Author',
-        'born_date',
-        lambda date: datetime.strptime(date, '%B %d, %Y').date(),
-        'fullname'
-    )
+    if init():
+        authors = collection(
+            'Author',
+            'born_date',
+            lambda date: datetime.strptime(date, '%B %d, %Y').date(),
+            'fullname'
+        )
 
-    collection('Quote', 'author', lambda name: authors[name])
+        collection('Quote', 'author', lambda name: authors[name])
 
 
 if __name__ == '__main__':

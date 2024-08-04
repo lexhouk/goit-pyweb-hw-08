@@ -12,6 +12,16 @@ cache = RedisLRU(StrictRedis('localhost', 6379))
 
 
 def response(caption: str, names: list, field: list, value: Any) -> str:
+    '''Prepare command result.
+
+    :param caption: Prefix of title of quotes list.
+    :param names: One or more arguments of the command.
+    :param field: Filter condition for selecting specific documents.
+    :param value: Field value which is used in a filtering condition.
+
+    :return: Quotes list represented as a single line.
+    '''
+
     debug('Sending query to database...')
 
     names = ', '.join(names)
@@ -27,7 +37,14 @@ def response(caption: str, names: list, field: list, value: Any) -> str:
 
 @cache
 def name_command(name: str) -> str:
-    if (authors := Author.objects(fullname=name)):
+    '''Gets quotes from some authors.
+
+    :param names: Author's full name or some part of it.
+
+    :return: Quotes list represented as a single line.
+    '''
+
+    if (authors := Author.objects(fullname__icontains=name)):
         return response(
             'Quotes of author',
             [name],
@@ -40,16 +57,32 @@ def name_command(name: str) -> str:
 
 @cache
 def tag_command(tag: str) -> str:
-    return response('Quotes with tag', [tag], 'tags', tag)
+    '''Gets quotes that have a provided tag.
+
+    :param tag: Tag name or some part of it.
+
+    :return: Quotes list represented as a single line.
+    '''
+
+    return response('Quotes with tag', [tag], 'tags__icontains', tag)
 
 
 def tags_command(tags: str) -> str:
+    '''Gets quotes that have provided tags.
+
+    :param tags: Names of tags referenced to quotes that you looking for.
+
+    :return: Quotes list represented as a single line.
+    '''
+
     tags = [formatted for raw in tags.split(',') if (formatted := raw.strip())]
 
     return response('Quotes with tags', tags, 'tags__in', tags)
 
 
 def main() -> None:
+    '''Infinite loop for reading and processing given commands.'''
+
     if not init():
         return
 

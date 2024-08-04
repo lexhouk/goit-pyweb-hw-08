@@ -2,6 +2,13 @@ from pika import BlockingConnection, ConnectionParameters, PlainCredentials
 
 
 def handler(credentials: list) -> tuple:
+    '''Create a connection to the RabbitMQ server.
+
+    :param credentials: Options for connection URI.
+
+    :return: True if it is done without errors.
+    '''
+
     connection = BlockingConnection(
         ConnectionParameters(
             credentials[2],

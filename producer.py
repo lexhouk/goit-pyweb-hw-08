@@ -9,6 +9,11 @@ from services.rabbitmq.models import Contact, Email, PhoneNumber
 
 
 def main() -> None:
+    '''
+    Generate a few contacts and put them in different queues depending on the
+    type of contact information used.
+    '''
+
     if not init() or not (data := init(True)):
         return
 

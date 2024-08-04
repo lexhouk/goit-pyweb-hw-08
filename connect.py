@@ -8,6 +8,8 @@ def absent(type: str, name: str = None) -> str:
 
     :param type: Prefix of phrase.
     :param name: (optional) Object name which is missed.
+
+    :return: The message.
     '''
 
     name = ' ' + name if name else ''
@@ -16,6 +18,14 @@ def absent(type: str, name: str = None) -> str:
 
 
 def init(is_rabbitmq: bool = False) -> bool:
+    '''Initialise connection to a server.
+
+    :param is_rabbitmq: (optional) True if need to connect to the RabbitMQ
+        server. Otherwise, connection to the MongoDB database.
+
+    :return: True if it is done without errors.
+    '''
+
     basicConfig(format='%(levelname)s: %(message)s', level=INFO)
 
     path = Path('credentials.ini')
