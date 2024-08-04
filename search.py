@@ -44,7 +44,7 @@ def tag_command(tag: str) -> str:
 
 
 def tags_command(tags: str) -> str:
-    tags = [tags.strip() for tags in tags.split(',') if tags.strip()]
+    tags = [formatted for raw in tags.split(',') if (formatted := raw.strip())]
 
     return response('Quotes with tags', tags, 'tags__in', tags)
 

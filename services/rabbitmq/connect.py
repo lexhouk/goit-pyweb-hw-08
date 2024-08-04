@@ -11,6 +11,11 @@ def handler(credentials: list) -> tuple:
     )
 
     channel = connection.channel()
-    channel.queue_declare(credentials[4], durable=True)
 
-    return connection, channel, credentials[4]
+    for name in (names := credentials[4].split(',')):
+        name = name.strip().lower()
+        channel.exchange_declare(exchange_name := f'{name}_exchange')
+        channel.queue_declare(queue_name := f'{name}_queue', durable=True)
+        channel.queue_bind(queue_name, exchange_name)
+
+    return connection, channel, names

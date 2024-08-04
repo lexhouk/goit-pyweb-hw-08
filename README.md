@@ -29,5 +29,6 @@ $ python producer.py
 ## Usage
 
 ```bash
-$ python consumer.py
+$ python consumer_email.py
+$ python consumer_sms.py
 ```

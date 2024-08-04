@@ -1,46 +1,58 @@
 from logging import info
 from sys import exit
+from typing import Callable
 
 from pika.adapters.blocking_connection import BlockingChannel
+from pika.spec import Basic, BasicProperties
 
 from connect import init
 from services.rabbitmq.models import Contact
 
+Handler = Callable[[str], bool]
 
-def send(email: str) -> bool:
-    '''Stub function.
-
-    :param email: An E-mail address.
-
-    :return: True if a letter has been sent successfully.
-    '''
-    ...
+field: str
+type: str
+handler: Handler
 
 
-def callback(channel: BlockingChannel, method, properties, body) -> None:
-    if (contact := Contact.objects(id=body.decode(), delivered=False).first()):
-        info(f'Sending letter to {contact.email}...')
+def callback(
+    channel: BlockingChannel,
+    method: Basic.Deliver,
+    properties: BasicProperties,
+    body: bytes
+) -> None:
+    '''Messages dispatcher.'''
 
-        send(contact.email)
+    sub_field = f'{field}__delivered'
+    filters = {'id': body.decode(), sub_field: False}
+    contact = Contact.objects(**filters).first()
 
-        contact.update(set__delivered=True)
+    if contact:
+        recipient = getattr(contact, field).value
+        info(f'Sending {type} to {recipient}...')
+
+        if handler(recipient):
+            contact.update(**{f'set__{sub_field}': True})
 
 
 def main() -> None:
     if not init() or not (data := init(True)):
         return
 
-    _, channel, queue_name = data
-
+    channel: BlockingChannel = data[1]
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue_name, callback, True)
+    channel.basic_consume(f'{field}_queue', callback, True)
 
-    info('Waiting for messages. Press CTRL+C to exit.')
+    [info(msg) for msg in ('Waiting for messages...', 'Press CTRL+C to exit.')]
 
     channel.start_consuming()
 
 
-if __name__ == '__main__':
+def start(field_name: str, type_name: str, handler_callback: Handler) -> None:
+    global field, type, handler
+
+    field, type, handler = field_name, type_name, handler_callback
+
     try:
         main()
     except KeyboardInterrupt:
